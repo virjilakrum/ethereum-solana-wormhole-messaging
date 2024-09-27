@@ -1,12 +1,12 @@
 [package]
 name = "zklmes"
 version = "0.1.0"
-description = "Created with Anchor"
+description = "Cross Chain Messenger App"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "zklmes"
+name = "solana"
 
 [features]
 no-entrypoint = []
@@ -16,4 +16,8 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = "0.25.0"
+sha3 = "0.10.1"
+byteorder = "1.4.3"
+borsh = "0.9.3"
+hex = "0.4.3"
