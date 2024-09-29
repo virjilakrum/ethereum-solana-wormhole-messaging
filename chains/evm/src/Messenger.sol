@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "./Wormhole/IWormhole.sol";
+import "./Wormhole/Iwormhole.sol";
 
 contract Messenger {
     string private current_msg;
