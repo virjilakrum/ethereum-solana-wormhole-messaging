@@ -35,7 +35,7 @@ program
     if (network === 'ethereum') {
         messenger = new EVMMessenger(config.networks[network].rpc, config.networks[network].bridgeAddress, config.networks[network].deployedAddress);
     } else if (network === 'solana') {
-        messenger = new SolanaMessenger();
+        messenger = new SolanaMessenger(config.networks[network].rpc, config.networks[network].bridgeAddress);
     } else {
         console.error(`ERROR: Unsupported network ${network}`);
         return;
