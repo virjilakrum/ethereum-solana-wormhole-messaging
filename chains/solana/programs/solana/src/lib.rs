@@ -27,7 +27,7 @@ use context::*;
 use constant::*;
 use error::*;
 
-declare_id!("5ZokR8MrcDgC1ZdfQokkLffPKPAEYN3ie2duefa5dZKv");
+declare_id!("24FoTeX7BKbhTh3UF3feWusoAVKDPWZneiEqhXLVzZPL");
 
 #[program]
 pub mod solana {
