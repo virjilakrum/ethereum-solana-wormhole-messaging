@@ -19,7 +19,7 @@ export class EthereumWormhole {
   }
 
   async sendMessage(message: WormholeMessage, targetChain: number): Promise<string> {
-    const encodedMessage = ethers.AbiCoder.defaultAbiCoder().encode(
+    const encodedMessage = ethers.utils.defaultAbiCoder.encode(
       ['string', 'string', 'string'],
       [message.pubKey1, message.pubKey2, message.encryptedData]
     );
@@ -37,7 +37,7 @@ export class EthereumWormhole {
       throw new Error(`Invalid VAA: ${reason}`);
     }
     const parsedVaa = parseVaa(vaa);
-    const decodedPayload = ethers.AbiCoder.defaultAbiCoder().decode(
+    const decodedPayload = ethers.utils.defaultAbiCoder.decode(
       ['string', 'string', 'string'],
       parsedVaa.payload
     );

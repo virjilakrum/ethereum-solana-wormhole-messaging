@@ -7,9 +7,11 @@
   "author": "Dev Bharel",
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.10.18",
+    "@types/chai": "^5.0.0",
     "@types/node": "^18.11.10",
     "@types/node-fetch": "^2.6.2",
     "aptos": "^1.4.0",
+    "chai": "^5.1.1",
     "commander": "^9.4.1",
     "ethers": "^5.7.2",
     "node-fetch": "2"

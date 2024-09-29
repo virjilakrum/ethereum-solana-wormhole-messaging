@@ -42,7 +42,123 @@ mod error;
 mod wormhole;
 
 use instruction::CrossChainInstruction;
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::instruction::Instruction;
+use anchor_lang::solana_program::system_instruction::transfer;
+use anchor_lang::solana_program::program::invoke_signed;
+use std::str::FromStr;
+use hex::decode;
 
+mod context;
+mod constant;
+mod account;
+mod wormhole;
+mod error;
+
+use wormhole::*;
+use context::*;
+use constant::*;
+use account::*;
+use error::*;
+
+declare_id!("4Xaxcpw5PLMT5iTu14AH6RMaRRU6oskLcVnKQ1PWkobP");
+
+#[program]
+pub mod solana {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        ctx.accounts.config.owner = ctx.accounts.owner.key();
+        ctx.accounts.config.nonce = 1;
+        Ok(())
+    }
+
+    pub fn register_chain(ctx: Context<RegisterChain>, chain_id: u16, emitter_addr: String) -> Result<()> {
+        ctx.accounts.emitter_acc.chain_id = chain_id;
+        ctx.accounts.emitter_acc.emitter_addr = emitter_addr;
+        Ok(())
+    }
+
+    pub fn send_msg(ctx: Context<SendMsg>, pub_key1: String, pub_key2: String, encrypted_data: String) -> Result<()> {
+        let bridge_data: BridgeData = BridgeData::try_from_slice(&ctx.accounts.wormhole_config.data.borrow())?;
+        
+        invoke_signed(
+            &transfer(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.wormhole_fee_collector.key(),
+                bridge_data.config.fee
+            ),
+            &[
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.wormhole_fee_collector.to_account_info()
+            ],
+            &[]
+        )?;
+
+        let payload = [pub_key1, pub_key2, encrypted_data, ctx.accounts.payer.key().to_string()].join("|");
+        let sendmsg_ix = Instruction {
+            program_id: ctx.accounts.core_bridge.key(),
+            accounts: vec![
+                AccountMeta::new(ctx.accounts.wormhole_config.key(), false),
+                AccountMeta::new(ctx.accounts.wormhole_message_key.key(), true),
+                AccountMeta::new_readonly(ctx.accounts.wormhole_derived_emitter.key(), true),
+                AccountMeta::new(ctx.accounts.wormhole_sequence.key(), false),
+                AccountMeta::new(ctx.accounts.payer.key(), true),
+                AccountMeta::new(ctx.accounts.wormhole_fee_collector.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.clock.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+            ],
+            data: (
+                wormhole::Instruction::PostMessage,
+                PostMessageData {
+                    nonce: ctx.accounts.config.nonce,
+                    payload: payload.as_bytes().to_vec(),
+                    consistency_level: ConsistencyLevel::Confirmed,
+                },
+            ).try_to_vec()?,
+        };
+
+        invoke_signed(
+            &sendmsg_ix,
+            &[
+                ctx.accounts.wormhole_config.to_account_info(),
+                ctx.accounts.wormhole_message_key.to_account_info(),
+                ctx.accounts.wormhole_derived_emitter.to_account_info(),
+                ctx.accounts.wormhole_sequence.to_account_info(),
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.wormhole_fee_collector.to_account_info(),
+                ctx.accounts.clock.to_account_info(),
+                ctx.accounts.rent.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            &[&[b"emitter".as_ref(), &[*ctx.bumps.get("wormhole_derived_emitter").unwrap()]]]
+        )?;
+
+        ctx.accounts.config.nonce += 1;
+        Ok(())
+    }
+
+    pub fn confirm_msg(ctx: Context<ConfirmMsg>) -> Result<()> {
+        let vaa = PostedMessageData::try_from_slice(&ctx.accounts.core_bridge_vaa.data.borrow())?.0;
+
+        if vaa.emitter_chain != ctx.accounts.emitter_acc.chain_id ||
+           vaa.emitter_address != &decode(&ctx.accounts.emitter_acc.emitter_addr.as_str()).unwrap()[..] {
+            return err!(MessengerError::VAAEmitterMismatch);
+        }
+
+        let payload = String::from_utf8(vaa.payload).unwrap();
+        let parts: Vec<&str> = payload.split("|").collect();
+        if parts.len() != 4 {
+            return err!(MessengerError::InvalidPayload);
+        }
+
+        ctx.accounts.config.current_msg = parts[2].to_string(); // Store encrypted data
+        Ok(())
+    }
+}
+
+// Add any additional helper functions here if needed
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
@@ -55,7 +171,7 @@ pub fn process_instruction(
 }
 
 
-declare_id!("4Xaxcpw5PLMT5iTu14AH6RMaRRU6oskLcVnKQ1PWkobP");
+//declare_id!("4Xaxcpw5PLMT5iTu14AH6RMaRRU6oskLcVnKQ1PWkobP");
 
 #[program]
 pub mod solana {

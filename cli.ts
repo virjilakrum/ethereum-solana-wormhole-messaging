@@ -1,7 +1,8 @@
 import fs from 'fs';
 import { AptosAccount, AptosClient, Types } from "aptos";
 import { Command } from 'commander';
-import { AptosMessenger, EVMMessenger } from './sdk';
+import { AptosMessenger, EVMMessenger, SolanaMessenger } from './sdk';
+import * as utils from './sdk/utils'; // Assuming utils is in a separate file named 'utils.ts'
 import {
     tryNativeToUint8Array,
     generateSignAndSubmitEntryFunction,
@@ -15,6 +16,47 @@ import ethers from 'ethers';
 
 const config = JSON.parse(fs.readFileSync('./xdapp.config.json').toString())
 const program = new Command();
+
+
+program
+  .command('generate-keys')
+  .description('Generate a new key pair')
+  .action(async () => {
+    const { privateKey, publicKey } = await utils.generateKeyPair();
+    console.log('Private Key:', privateKey.toString('hex'));
+    console.log('Public Key:', utils.compressPublicKey(publicKey));
+  });
+
+program
+  .command('send-encrypted-message <network> <recipientPublicKey> <message>')
+  .description('Send an encrypted message')
+  .action(async (network, recipientPublicKey, message) => {
+    let messenger;
+    if (network === 'ethereum') {
+        messenger = new EVMMessenger(config.networks[network].rpc, config.networks[network].bridgeAddress, config.networks[network].deployedAddress);
+    } else if (network === 'solana') {
+        messenger = new SolanaMessenger();
+    } else {
+        console.error(`ERROR: Unsupported network ${network}`);
+        return;
+    }
+
+    const senderKeyPair = await utils.generateKeyPair(); // In practice, you'd load this from secure storage
+    const encryptedMessage = await utils.encrypt(Buffer.from(recipientPublicKey, 'hex'), message);
+
+    if (messenger.sendMessage) {
+        const result = await messenger.sendMessage(
+            utils.compressPublicKey(senderKeyPair.publicKey),
+            recipientPublicKey,
+            encryptedMessage,
+            /* other necessary params */
+        );
+        console.log('Message sent:', result);
+    } else {
+        console.error(`ERROR: sendMessage not supported on ${network}`);
+    }
+  });
+
 
 
 program
