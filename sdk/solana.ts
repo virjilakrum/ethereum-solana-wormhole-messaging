@@ -1,8 +1,8 @@
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { Program, AnchorProvider, Wallet, BN } from '@project-serum/anchor';
 import { IDL } from '../chains/solana/target/types/solana';
-import { CORE_BRIDGE_ADDRESS } from '../chains/solana/programs/solana/src/constant';
-
+//import { CORE_BRIDGE_ADDRESS } from '../chains/solana/programs/solana/src/constant';
+const CORE_BRIDGE_ADDRESS: string = "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 export class SolanaMessenger {
     connection: Connection;
     programId: PublicKey;

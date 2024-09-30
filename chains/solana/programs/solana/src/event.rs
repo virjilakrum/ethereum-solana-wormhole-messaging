@@ -9,6 +9,7 @@ pub struct WormholeMessageSent {
     pub pub_key1: String,
     pub pub_key2: String,
     pub payload_hash: [u8; 32],
+    pub message_hash: [u8; 32],  // Hash of the entire message
 }
 
 #[event]
@@ -22,6 +23,7 @@ pub struct WormholeMessageReceived {
     pub pub_key1: String,
     pub pub_key2: String,
     pub payload_hash: [u8; 32],
+    pub received_message_hash: [u8; 32],  // Hash of the received message
 }
 
 #[event]
@@ -30,6 +32,17 @@ pub struct MessageProcessed {
     pub vaa_hash: [u8; 32],
     pub sender: Pubkey,
     pub recipient: Pubkey,
+    pub original_message_hash: [u8; 32],  // Hash from the sending chain
+    pub processed_message_hash: [u8; 32],  // Hash computed after processing
+}
+
+#[event]
+pub struct HashVerificationResult {
+    #[index]
+    pub vaa_hash: [u8; 32],
+    pub is_match: bool,
+    pub original_hash: [u8; 32],
+    pub computed_hash: [u8; 32],
 }
 
 #[event]

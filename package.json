@@ -13,7 +13,11 @@
     "aptos": "^1.4.0",
     "chai": "^5.1.1",
     "commander": "^9.4.1",
+    "eccrypto": "^1.1.6",
     "ethers": "^5.7.2",
     "node-fetch": "2"
+  },
+  "devDependencies": {
+    "@types/eccrypto": "^1.1.6"
   }
 }
