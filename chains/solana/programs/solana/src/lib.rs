@@ -1,20 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::Instruction;
 use anchor_lang::solana_program::system_instruction::transfer;
-use anchor_lang::solana_program::borsh::try_from_slice_unchecked;
 use anchor_lang::solana_program::program::invoke_signed;
-
-use sha3::Digest;
-use byteorder::{
-    BigEndian,
-    WriteBytesExt,
-};
-use std::io::{
-    Cursor,
-    Write,
-};
 use std::str::FromStr;
 use hex::decode;
+use sha3::Digest;
+use byteorder::{BigEndian, WriteBytesExt};
+use std::io::{Cursor, Write};
 
 mod context;
 mod constant;
@@ -25,31 +17,30 @@ mod error;
 use wormhole::*;
 use context::*;
 use constant::*;
+use account::*;
 use error::*;
 
 declare_id!("4Xaxcpw5PLMT5iTu14AH6RMaRRU6oskLcVnKQ1PWkobP");
 
 #[program]
 pub mod solana {
-
     use super::*;
+
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.config.owner = ctx.accounts.owner.key();
         ctx.accounts.config.nonce = 1;
         Ok(())
     }
 
-    pub fn register_chain(ctx:Context<RegisterChain>, chain_id:u16, emitter_addr:String) -> Result<()> {
+    pub fn register_chain(ctx: Context<RegisterChain>, chain_id: u16, emitter_addr: String) -> Result<()> {
         ctx.accounts.emitter_acc.chain_id = chain_id;
         ctx.accounts.emitter_acc.emitter_addr = emitter_addr;
         Ok(())
     }
 
-    pub fn send_msg(ctx:Context<SendMsg>, msg:String) -> Result<()> {
-        //Look Up Fee
-        let bridge_data:BridgeData = try_from_slice_unchecked(&ctx.accounts.wormhole_config.data.borrow_mut())?;
+    pub fn send_msg(ctx: Context<SendMsg>, pub_key1: String, pub_key2: String, encrypted_data: String) -> Result<()> {
+        let bridge_data: BridgeData = BridgeData::try_from_slice(&ctx.accounts.wormhole_config.data.borrow())?;
         
-        //Send Fee
         invoke_signed(
             &transfer(
                 &ctx.accounts.payer.key(),
@@ -63,7 +54,7 @@ pub mod solana {
             &[]
         )?;
 
-        //Send Post Msg Tx
+        let payload = [pub_key1, pub_key2, encrypted_data, ctx.accounts.payer.key().to_string()].join("|");
         let sendmsg_ix = Instruction {
             program_id: ctx.accounts.core_bridge.key(),
             accounts: vec![
@@ -81,8 +72,8 @@ pub mod solana {
                 wormhole::Instruction::PostMessage,
                 PostMessageData {
                     nonce: ctx.accounts.config.nonce,
-                    payload: msg.as_bytes().try_to_vec()?,
-                    consistency_level: wormhole::ConsistencyLevel::Confirmed,
+                    payload: payload.as_bytes().to_vec(),
+                    consistency_level: ConsistencyLevel::Confirmed,
                 },
             ).try_to_vec()?,
         };
@@ -100,20 +91,14 @@ pub mod solana {
                 ctx.accounts.rent.to_account_info(),
                 ctx.accounts.system_program.to_account_info(),
             ],
-            &[
-                &[
-                    &b"emitter".as_ref(),
-                    &[*ctx.bumps.get("wormhole_derived_emitter").unwrap()]
-                ]
-            ]
+            &[&[b"emitter".as_ref(), &[*ctx.bumps.get("wormhole_derived_emitter").unwrap()]]]
         )?;
 
         ctx.accounts.config.nonce += 1;
         Ok(())
     }
 
-    pub fn confirm_msg(ctx:Context<ConfirmMsg>) -> Result<()> {
-        //Hash a VAA Extract and derive a VAA Key
+    pub fn confirm_msg(ctx: Context<ConfirmMsg>) -> Result<()> {
         let vaa = PostedMessageData::try_from_slice(&ctx.accounts.core_bridge_vaa.data.borrow())?.0;
         let serialized_vaa = serialize_vaa(&vaa);
 
@@ -130,21 +115,23 @@ pub mod solana {
             return err!(MessengerError::VAAKeyMismatch);
         }
 
-        msg!("Checking emitter chain and address");
-        // Already checked that the SignedVaa is owned by core bridge in account constraint logic
-        //Check that the emitter chain and address match up with the vaa
         if vaa.emitter_chain != ctx.accounts.emitter_acc.chain_id ||
            vaa.emitter_address != &decode(&ctx.accounts.emitter_acc.emitter_addr.as_str()).unwrap()[..] {
-            return err!(MessengerError::VAAEmitterMismatch)
+            return err!(MessengerError::VAAEmitterMismatch);
         }
 
-        ctx.accounts.config.current_msg = String::from_utf8(vaa.payload).unwrap();
+        let payload = String::from_utf8(vaa.payload).unwrap();
+        let parts: Vec<&str> = payload.split("|").collect();
+        if parts.len() != 4 {
+            return err!(MessengerError::InvalidPayload);
+        }
+
+        ctx.accounts.config.current_msg = parts[2].to_string(); // Store encrypted data
         Ok(())
     }
 }
 
-// Convert a full VAA structure into the serialization of its unique components, this structure is
-// what is hashed and verified by Guardians.
+// Convert a full VAA structure into the serialization of its unique components
 pub fn serialize_vaa(vaa: &MessageData) -> Vec<u8> {
     let mut v = Cursor::new(Vec::new());
     v.write_u32::<BigEndian>(vaa.vaa_time).unwrap();

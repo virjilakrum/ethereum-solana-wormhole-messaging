@@ -1,17 +1,23 @@
 {
-    "name": "messenger-v2",
-    "version": "1.0.0",
-    "description": "Upgraded version of Messenger code base using Relayer",
-    "main": "client.ts",
-    "license": "MIT",
-    "author": "Dev Bharel",
-    "dependencies": {
-      "@certusone/wormhole-sdk": "^0.9.4",
-      "@types/node": "^18.11.10",
-      "@types/node-fetch": "^2.6.2",
-      "aptos": "^1.4.0",
-      "commander": "^9.4.1",
-      "ethers": "^5.7.2",
-      "node-fetch": "2"
-    }
+  "name": "messenger-v2",
+  "version": "1.0.0",
+  "description": "Upgraded version of Messenger code base using Relayer",
+  "main": "client.ts",
+  "license": "MIT",
+  "author": "Dev Bharel",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.10.18",
+    "@types/chai": "^5.0.0",
+    "@types/node": "^18.11.10",
+    "@types/node-fetch": "^2.6.2",
+    "aptos": "^1.4.0",
+    "chai": "^5.1.1",
+    "commander": "^9.4.1",
+    "eccrypto": "^1.1.6",
+    "ethers": "^5.7.2",
+    "node-fetch": "2"
+  },
+  "devDependencies": {
+    "@types/eccrypto": "^1.1.6"
   }
+}
